@@ -1,0 +1,321 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>DCS - 3.3</title>
+
+    <!--- Math.js library, for matrix manipulation, and many other things--->
+    <script src=https://cdnjs.cloudflare.com/ajax/libs/mathjs/3.3.0/math.min.js></script>
+</head>
+
+<body>
+
+<h1>DCS - 3.3 Cubic Hermite interpolation</h1>
+<h2>Problem 4</h2>
+
+<p>
+Given P0 = (200, 200), P1 = (400, 300), v0 = (100, 100), and v1 = (100, 0),
+we compute the Hermite curve at t = 1/2.
+</p>
+
+<p>
+The Hermite curve is defined as:
+</p>
+
+<p>
+P(t) = h00(t)·P0 + h10(t)·v0 + h01(t)·P1 + h11(t)·v1
+</p>
+
+<p>
+At t = 1/2, the basis functions are:
+h00 = 0.5, h10 = 0.125, h01 = 0.5, h11 = -0.125
+</p>
+
+<p>
+Substituting the values:
+</p>
+
+<p>
+x = 0.5·200 + 0.125·100 + 0.5·400 - 0.125·100 = 300<br>
+y = 0.5·200 + 0.125·100 + 0.5·300 - 0.125·0 = 262.5
+</p>
+
+<p>
+Therefore:
+P(1/2) = (300, 262.5)
+</p>
+
+<hr>
+
+<p>
+To make the curve pass through (300, 300) at t = 1/2 while keeping the same tangent directions,
+we scale the tangent vectors.
+</p>
+
+<p>
+Let v0' = α·v0. Then the y-coordinate becomes:
+</p>
+
+<p>
+y = 250 + 12.5·α
+</p>
+
+<p>
+Setting y = 300:
+</p>
+
+<p>
+300 = 250 + 12.5·α ⇒ α = 4
+</p>
+<p>
+Since v1 only affects the x-direction (its y-component is 0), scaling v0 is sufficient to adjust the y-coordinate.
+</p>
+<p>
+Final tangent vectors:
+</p>
+
+<p>
+v0 = (400, 400)<br>
+v1 = (100, 0)
+</p>
+
+<canvas id="canvas1" height="600" width="800" class="bezier"  style="border:1px solid #d3d3d3;"></canvas>
+<br>
+<button onclick="setProblem4()">Set Problem 4</button>
+<button onclick="resetDefault()">Reset</button>
+
+<script type="text/javascript">
+
+    /*
+    * Part of this code is based on:
+        * http://blogs.sitepoint.com/html5-canvas-draw-quadratic-curves/
+        * http://blogs.sitepoint.com/html5-canvas-draw-bezier-curves/
+    */
+
+    var canvas1, context1, points, myTransformation, style, drag = null, draggedPoint;
+
+    points = [{ x:300, y:300 },{ x:200, y:200 },{ x:400, y:300 },{ x:500, y:300 }];
+
+    function init() {
+
+        myTransformation = function(p){return p}; //Identity transform
+
+        // default styles
+        style = {
+            curve:	{ width: 6, color: "#333" },
+            line:	{ width: 1, color: "#C00" },
+            point: { radius: 10, width: 2, color: "#900", fill: "rgba(200,200,200,0.5)", arc1: 0, arc2: 2 * Math.PI }
+        }
+
+        // line style defaults
+        context1.lineCap = "round";
+        context1.lineJoin = "round";
+
+        // event handlers (only canvas1)
+        canvas1.onmousedown = dragStart;
+        canvas1.onmousemove = dragging;
+        canvas1.onmouseup = canvas1.onmouseout = dragEnd;
+
+        drawCanvas();
+    }
+
+
+    /**
+     Basic drawing methods
+     **/
+
+
+    // draw canvas
+    function drawCanvas() {
+        // Clear everything
+        context1.clearRect(0, 0, canvas1.width, canvas1.height);  // Clear canvas
+
+        // Background grids
+        drawGrid(context1,canvas1.width, canvas1.height); // Draw background grid
+
+        // Curve through points and vertices
+        drawCurve(context1, style, points); // Draw curve
+        drawVertices(context1, style, points); // Draw vertices as circles
+
+    }
+
+
+    // Draw a background grid
+    function drawGrid(myContext,bw,bh){
+        var delta = 50; // grid cell size
+
+        for (var x = 0; x <= bw; x += delta) {
+            myContext.moveTo(x, 0);
+            myContext.lineTo(x, bh);
+        }
+
+        for (var y = 0; y <= bh; y += delta) {
+            myContext.moveTo(0, y);
+            myContext.lineTo(bw , y);
+        }
+
+        myContext.lineWidth = 1;
+        myContext.strokeStyle = "lightgray";
+        myContext.stroke();
+
+        myContext.fillStyle = "black";
+        myContext.font = "12px Arial";
+        myContext.fillText("(0,0)",2,12);
+
+    }
+
+    // Draws a polygonal curve connecting the points, after applying the given transformation
+    function drawCurve(ctx, style, points, transformation) {
+        // we define the points first 
+        var P0 = points[0];
+        var P1 = points[3];
+
+        var T0 = { //we get the tangeants 
+            x: points[1].x - P0.x,
+            y: points[1].y - P0.y
+        };
+
+        var T1 = { // second tangeant 
+            x: points[2].x - P1.x,
+            y: points[2].y - P1.y
+        };
+        // then hermite our waay out 
+        ctx.beginPath();
+        ctx.strokeStyle = "blue";
+        ctx.lineWidth = 4;
+
+        for (var t = 0; t <= 1; t += 0.01){
+
+            var p = hermite(t, P0, P1, T0, T1);
+
+            if (t == 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+        }
+
+        ctx.stroke();
+// POUR LES tangeantes 
+        // tangent at P0
+        ctx.beginPath();
+        ctx.moveTo(P0.x, P0.y);
+        ctx.lineTo(P0.x + T0.x, P0.y + T0.y);
+        ctx.strokeStyle = "red";
+        ctx.stroke();
+
+        // tangent at P1
+        ctx.beginPath();
+        ctx.moveTo(P1.x, P1.y);
+        ctx.lineTo(P1.x + T1.x, P1.y + T1.y);
+        ctx.strokeStyle = "green";
+        ctx.stroke();
+    }
+
+    // Draw circles around vertices to facilitate drag and drop
+    function drawVertices (ctx, style, points) {
+        for (var i = 0; i < points.length; i++) {
+            var p = points[i];
+            ctx.lineWidth = style.point.width;
+            ctx.strokeStyle = style.point.color;
+            ctx.fillStyle = style.point.fill;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, style.point.radius, style.point.arc1, style.point.arc2, true);
+            ctx.fill();
+            ctx.stroke();
+        }
+    }
+
+    /**
+     Methods to allow dragging transformedPoints around
+     **/
+
+    // start dragging
+    function dragStart(e) {
+        e = mousePos(e);
+        var dx, dy;
+        for (var i=0; i<points.length;i++) {
+            dx = points[i].x - e.x;
+            dy = points[i].y - e.y;
+            if ((dx * dx) + (dy * dy) < style.point.radius * style.point.radius) {
+                drag = i;
+                draggedPoint = e;
+                canvas1.style.cursor = "move";
+                return;
+            }
+        }
+    }
+
+    // dragging
+    function dragging(e) {
+        if (drag!=null) {
+            e = mousePos(e);
+            points[drag].x += e.x - draggedPoint.x;
+            points[drag].y += e.y - draggedPoint.y;
+            draggedPoint = e;
+            drawCanvas();
+        }
+    }
+
+    // end dragging
+    function dragEnd(e) {
+        drag = null;
+        canvas1.style.cursor = "default";
+        drawCanvas();
+    }
+
+    // event parser
+    function mousePos(event) {
+        event = (event ? event : window.event);
+        return {
+            x: event.pageX - canvas1.offsetLeft,
+            y: event.pageY - canvas1.offsetTop
+        }
+    }
+
+    /**
+     * Start ("main method")
+     */
+
+    // Assign canvas and context variables
+    canvas1 = document.getElementById("canvas1");
+    context1 = canvas1.getContext("2d");
+
+    init();
+
+    
+    function hermite(t, P0, P1, T0, T1){ // hermite s function definition 
+
+        var h00 =  2*t*t*t - 3*t*t + 1; // 2t^3-3t^2+1
+        var h10 =      t*t*t - 2*t*t + t;// t^3-2t^2+t
+        var h01 = -2*t*t*t + 3*t*t;// -2t^3+3t^2
+        var h11 =      t*t*t - t*t;//t^3-t^2
+
+        return {
+            x: h00*P0.x + h10*T0.x + h01*P1.x + h11*T1.x,
+            y: h00*P0.y + h10*T0.y + h01*P1.y + h11*T1.y
+        };
+    }
+    function setProblem4(){
+// only for problem 4 
+        points = [
+            {x:200, y:200},  // P0
+            {x:600, y:600},  // P0 + v0 (400,400)
+            {x:500, y:300},  // P1 + v1 (100,0)
+            {x:400, y:300}   // P1
+        ];
+
+        drawCanvas();}
+        // the resettt 
+    function resetDefault(){
+        points = [
+            { x:300, y:300 },
+            { x:200, y:200 },
+            { x:400, y:300 },
+            { x:500, y:300 }
+        ];
+        drawCanvas();
+    
+}
+
+</script>
+</body>
+</html>

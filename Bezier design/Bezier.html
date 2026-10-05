@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Cubic Bézier Curve</title>
+
+    <script src="math.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>Cubic Bézier Curve</h1>
+
+<canvas id="canvas1" width="800" height="600"></canvas>
+<br>
+<button onclick="resetCurve()">Reset Curve</button>
+<button onclick="newCompositeCurve()">New Composite Curve</button>
+<script>
+
+    let canvas1 = document.getElementById("canvas1");
+    let context1 = canvas1.getContext("2d");
+
+    let drag = null;
+    let draggedPoint;
+
+    // Control arrays of composite Bezier  Curves added for visualisation 
+    let curves = [[
+        {x:100, y:300},
+        {x:200, y:100},
+        {x:500, y:100},
+        {x:600, y:300}
+    ]];
+    // Current curve being edited
+    let activeCurve = 0;
+    // Styles
+    let style = {
+        curve: { width: 4, color: "#0000cc" },
+        line:  { width: 1, color: "#999" },
+        point: {
+            radius: 10,
+            width: 2,
+            color: "#900",
+            fill: "rgba(255,0,0,0.4)"
+        }
+    };
+
+    // Draw everything
+    function drawCanvas() {
+
+        context1.clearRect(0, 0, canvas1.width, canvas1.height);
+
+        drawGrid();
+        drawControlPolygon();// added draw polygon
+        drawBezierCurves();// cubic  ezier curve 
+        drawVertices();
+    }
+
+    // Background grid
+    function drawGrid() {
+
+        let delta = 50;
+
+        context1.beginPath();
+
+        for(let x = 0; x <= canvas1.width; x += delta) {
+            context1.moveTo(x,0);
+            context1.lineTo(x,canvas1.height);
+        }
+
+        for(let y = 0; y <= canvas1.height; y += delta) {
+            context1.moveTo(0,y);
+            context1.lineTo(canvas1.width,y);
+        }
+
+        context1.strokeStyle = "#e0e0e0";
+        context1.lineWidth = 1;
+        context1.stroke();
+    }
+
+    // Draw polygon between control points
+    function drawControlPolygon() {
+
+        for(let c = 0; c < curves.length; c++) {
+
+            let points = curves[c];
+
+            context1.beginPath();
+
+            context1.moveTo(points[0].x, points[0].y);
+
+            for(let i = 1; i < points.length; i++) {
+
+                context1.lineTo(points[i].x, points[i].y);
+            }
+
+            context1.strokeStyle = style.line.color;
+            context1.lineWidth = style.line.width;
+            context1.stroke();
+        }
+    }
+
+    // Draw cubic Bézier curve
+   // Draw composite cubic Bézier curves
+    // Draw composite Bézier curves
+    function drawBezierCurves(){
+
+        context1.strokeStyle = style.curve.color;
+        context1.lineWidth = style.curve.width;
+
+        // Loop through all composite curves
+        for(let c=0; c<curves.length; c++){
+
+            let points = curves[c];
+
+            // Each Bézier segment
+            for(let i=0; i<=points.length-4; i+=3){
+
+                let p0 = points[i];
+                let p1 = points[i+1];
+                let p2 = points[i+2];
+                let p3 = points[i+3];
+
+                context1.beginPath();
+
+                // Compute first point
+                let start = deCasteljau(p0,p1,p2,p3,0);
+
+                context1.moveTo(start.x, start.y);
+
+                // Sample curve
+                for(let t=0; t<=1; t+=0.01){
+
+                    let p = deCasteljau(
+                        p0,p1,p2,p3,t
+                    );
+
+                    context1.lineTo(p.x,p.y);
+                }
+
+                context1.stroke();
+            }
+        }
+    }
+
+    // Draw draggable points
+    function drawVertices() {
+
+        for(let c = 0; c < curves.length; c++) {
+
+            let points = curves[c];
+
+            for(let i = 0; i < points.length; i++) {
+
+                let p = points[i];
+
+                context1.beginPath();
+
+                context1.arc(
+                    p.x,
+                    p.y,
+                    style.point.radius,
+                    0,
+                    2*Math.PI
+                );
+
+                context1.fillStyle = style.point.fill;
+                context1.fill();
+
+                context1.lineWidth = style.point.width;
+                context1.strokeStyle = style.point.color;
+                context1.stroke();
+            }
+        }
+    }
+
+    // Mouse position
+    function mousePos(event) {
+
+        return {
+            x: event.pageX - canvas1.offsetLeft,
+            y: event.pageY - canvas1.offsetTop
+        };
+    }
+   
+
+    // Start dragging
+    function dragStart(e) {
+
+        e = mousePos(e);
+        
+        for(let c = 0; c < curves.length; c++) {
+
+            let points = curves[c];
+
+            for(let i = 0; i < points.length; i++) {
+
+                let dx = points[i].x - e.x;
+                let dy = points[i].y - e.y;
+
+                if(dx*dx + dy*dy < style.point.radius*style.point.radius) {
+
+                    drag = {
+                        curve: c,
+                        point: i
+                    };
+                    activeCurve = c;
+                    draggedPoint = e;
+
+                    canvas1.style.cursor = "move";
+                    return;
+                }
+            }
+        }
+    }
+
+        // Dragging
+    // Drag selected point
+    function dragging(e){
+
+        if(drag != null){
+
+            e = mousePos(e);
+
+            let points = curves[drag.curve];
+
+            // Move dragged point
+            points[drag.point].x += e.x - draggedPoint.x;
+            points[drag.point].y += e.y - draggedPoint.y;
+
+            let i = drag.point;
+
+           
+            // Maintain C1 continuity
+        
+
+            // Dragging left handle (p2)
+            if(i % 3 == 2 && i + 1 < points.length){
+
+                let shared = points[i + 1];
+
+                let oppositeIndex = i + 2;
+
+                if(oppositeIndex < points.length){
+
+                    points[oppositeIndex].x =
+                        2 * shared.x - points[i].x;
+
+                    points[oppositeIndex].y =
+                        2 * shared.y - points[i].y;
+                }
+            }
+
+            // Dragging right handle (p4)
+            if(i % 3 == 1 && i - 2 > 0){
+
+                let shared = points[i - 1];
+
+                let oppositeIndex = i - 2;
+
+                if(oppositeIndex >= 0){
+
+                    points[oppositeIndex].x =
+                        2 * shared.x - points[i].x;
+
+                    points[oppositeIndex].y =
+                        2 * shared.y - points[i].y;
+                }
+            }
+
+            draggedPoint = e;
+
+            drawCanvas();
+        }
+    }
+    // End drag
+    function dragEnd() {
+
+        drag = null;
+        canvas1.style.cursor = "default";
+    }
+
+    // Events
+    canvas1.onmousedown = dragStart;
+    canvas1.onmousemove = dragging;
+    canvas1.onmouseup = dragEnd;
+    canvas1.onmouseout = dragEnd;
+    // Double click to add new Bézier segment for problem 2 
+    canvas1.ondblclick = addCurve;
+
+    // Initial draw
+    drawCanvas();
+        // Add a new Bézier curve segment
+    function addCurve(e) {
+
+        e = mousePos(e);
+
+        let points = curves[activeCurve];
+
+        let last = points[points.length - 1];
+
+        // Previous control point
+        let prevControl = points[points.length - 2];
+
+       
+        // C1 continuity
+        // Reflect previous control point
+        let newControl1 = {
+            x: 2 * last.x - prevControl.x,
+            y: 2 * last.y - prevControl.y
+        };
+
+        // Second control point
+        let newControl2 = {
+            x: e.x - 50,
+            y: e.y - 50
+        };
+
+        // New endpoint
+        let newEnd = {
+            x: e.x,
+            y: e.y
+        };
+
+        // Add 3 points for new curve
+        points.push(newControl1);
+        points.push(newControl2);
+        points.push(newEnd);
+
+        drawCanvas();
+    }
+    // Reset to the original single Bézier curve just to have one or the first one 
+    function resetCurve() {
+
+        curves = [[
+
+            {x:100, y:300},
+            {x:200, y:100},
+            {x:500, y:100},
+            {x:600, y:300}
+
+        ]];
+
+        activeCurve = 0;
+
+        drawCanvas();
+    }
+    // Create a completely new composite Bézier curve creating seperate curves 
+    function newCompositeCurve() {
+
+        let offset = curves.length * 50;
+
+        let newCurve = [
+            {x:100 + offset, y:300},
+            {x:200 + offset, y:100},
+            {x:500 + offset, y:100},
+            {x:600 + offset, y:300}
+        ];
+
+        curves.push(newCurve);
+
+        // Switch editing to new curve
+        activeCurve = curves.length - 1;
+
+        drawCanvas();
+    }
+        // Linear interpolation between 2 points
+    function lerp(p1, p2, t){
+
+        return{
+
+            x:(1 - t) * p1.x + t * p2.x,
+            y:(1 - t) * p1.y + t * p2.y
+        };
+    }
+        // De Casteljau algorithm for cubic Bézier curve
+    function deCasteljau(p0, p1, p2, p3, t){
+
+        // First interpolation level
+        let p01 = lerp(p0, p1, t);
+        let p12 = lerp(p1, p2, t);
+        let p23 = lerp(p2, p3, t);
+
+        // Second interpolation level
+        let p012 = lerp(p01, p12, t);
+        let p123 = lerp(p12, p23, t);
+
+        // Final interpolation point on curve
+        let p = lerp(p012, p123, t);
+
+        return p;
+    }
+
+</script>
+
+</body>
+</html>
