@@ -39,6 +39,44 @@ Developed as part of the Design of Curves and Surfaces course.
 - Math.js
 - Computational geometry
 
+  ## Screenshots
+
+### Bézier Design
+
+<p align="center">
+  <img src="photos/Bézier_design.png" width="700">
+</p>
+
+### Cubic Bézier
+
+<p align="center">
+  <img src="photos/Cubic_Bezier.png" width="700">
+</p>
+
+### Elliptic Helix
+
+<p align="center">
+  <img src="photos/Hélix.png" width="700">
+</p>
+
+### Lagrange Interpolation
+
+<p align="center">
+  <img src="photos/Lagrange.png" width="700">
+</p>
+
+### Runge's Phenomenon
+
+<p align="center">
+  <img src="photos/Runges_Phenomenon.png" width="700">
+</p>
+
+### C1 Continuity
+
+<p align="center">
+  <img src="photos/c1Continuity.png" width="700">
+</p>
+
 ## Purpose
 
 The project explores mathematical techniques used in computer graphics and
